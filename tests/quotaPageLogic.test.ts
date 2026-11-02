@@ -8,8 +8,10 @@ import {
   filterEntriesBySearch,
   isQuotaRefreshDisabled,
   paginate,
+  resolveActiveQuotaTab,
   resolveQuotaProviderType,
   sortQuotaEntries,
+  visibleQuotaTabs,
   type QuotaFileEntry,
 } from '@/features/quota/logic';
 import type { AuthFileItem } from '@/types';
@@ -258,5 +260,26 @@ describe('sortQuotaEntries', () => {
     const last = entries[entries.length - 1].file.name;
     const sorted = sortQuotaEntries(entries, 'soonest', resolver({ [last]: 1 }));
     expect(paginate(sorted, 1, 2).pageItems[0].file.name).toBe(last);
+  });
+});
+
+describe('visible provider tabs', () => {
+  const counts = (entries: QuotaFileEntry[]) => buildTabCounts(entries);
+
+  test('lists All plus only providers with credentials', () => {
+    const entries = classifyQuotaFiles(FILES);
+    expect(visibleQuotaTabs(counts(entries))).toEqual(['all', 'claude', 'codex', 'xai', 'kimi']);
+  });
+
+  test('hides the whole row when at most one provider has credentials', () => {
+    expect(visibleQuotaTabs(counts(classifyQuotaFiles([file('c.json', 'claude')])))).toEqual([]);
+    expect(visibleQuotaTabs(counts([]))).toEqual([]);
+  });
+
+  test('falls back to all when the stored tab is hidden', () => {
+    const visible = ['all', 'claude', 'codex'];
+    expect(resolveActiveQuotaTab('codex', visible)).toBe('codex');
+    expect(resolveActiveQuotaTab('antigravity', visible)).toBe('all');
+    expect(resolveActiveQuotaTab('claude', [])).toBe('all');
   });
 });

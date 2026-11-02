@@ -127,6 +127,20 @@ export function buildTabCounts(entries: QuotaFileEntry[]): Record<string, number
   return counts;
 }
 
+/**
+ * Tab ids to render: "All" plus providers that have credentials. With fewer
+ * than two such providers the row carries no choice, so it is hidden (empty).
+ */
+export function visibleQuotaTabs(counts: Record<string, number>): string[] {
+  const providers = QUOTA_TAB_ORDER.filter((type) => (counts[type] ?? 0) > 0);
+  return providers.length >= 2 ? ['all', ...providers] : [];
+}
+
+/** The persisted tab, or "all" when it points at a hidden provider. */
+export function resolveActiveQuotaTab(stored: QuotaTabId, visible: readonly string[]): QuotaTabId {
+  return visible.includes(stored) ? stored : 'all';
+}
+
 export const isQuotaRefreshDisabled = (
   canRefresh: boolean,
   loading: boolean,

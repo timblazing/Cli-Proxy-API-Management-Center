@@ -2,30 +2,27 @@ import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { getAuthFileIcon, getTypeLabel } from '@/features/authFiles/constants';
 import type { ResolvedTheme } from '@/types';
-import { MaskedName } from '../components/MaskedName';
 import type { QuotaProviderType } from '../providers/types';
 import { poolColor } from './poolColor';
-import { PoolChart, type PoolChartMode } from './PoolChart';
-import { formatDuration, formatMonthDay, formatWhen } from './poolFormat';
+import type { PoolChartMode } from './PoolChart';
+import { PoolPanel } from './PoolPanel';
 import type { PoolAccountInfo } from './poolAccounts';
 import type { HistorySample } from './historyStore';
-import {
-  buildPoolView,
-  poolRange,
-  type BurnHours,
-  type FutureFactor,
-  type PoolRange,
-} from './poolView';
+import type { BurnHours, FutureFactor, PoolRange } from './poolView';
 import styles from './PoolCard.module.scss';
 
 export interface PoolCardProps {
   provider: QuotaProviderType;
-  accounts: readonly PoolAccountInfo[];
+  /** Longest-window accounts. */
+  weeklyAccounts: readonly PoolAccountInfo[];
+  /** 5-hour-window accounts; empty hides the session panel. */
+  sessionAccounts: readonly PoolAccountInfo[];
   /** Credentials of this provider, loaded or not. */
   credentialCount: number;
   samples: readonly HistorySample[];
   now: number;
-  range: PoolRange;
+  weeklyRange: PoolRange;
+  sessionRange: PoolRange;
   mode: PoolChartMode;
   burnHours: BurnHours;
   factor: FutureFactor;
@@ -36,11 +33,13 @@ export interface PoolCardProps {
 export function PoolCard(props: PoolCardProps) {
   const {
     provider,
-    accounts,
+    weeklyAccounts,
+    sessionAccounts,
     credentialCount,
     samples,
     now,
-    range,
+    weeklyRange,
+    sessionRange,
     mode,
     burnHours,
     factor,
@@ -56,49 +55,22 @@ export function PoolCard(props: PoolCardProps) {
     () => samples.filter((sample) => sample.provider === provider),
     [samples, provider]
   );
-  const view = useMemo(
-    () =>
-      accounts.length === 0
-        ? null
-        : buildPoolView({ now, accounts, samples: providerSamples, burnHours, factor, range }),
-    [accounts, providerSamples, now, burnHours, factor, range]
-  );
 
-  const defaultRangeEnd = poolRange(now, 0).to;
-  const notBy = t('quota_management.pool_not_by', {
-    date: formatMonthDay((view?.projectedUntil ?? defaultRangeEnd) - 1, locale),
-  });
+  const hasSession = sessionAccounts.length > 0;
+  const hasWeekly = weeklyAccounts.length > 0;
+  const accountCount = weeklyAccounts.length || credentialCount;
 
-  const poolEmptyText = view
-    ? view.poolEmpty !== null
-      ? formatWhen(view.poolEmpty, locale)
-      : view.burn === null
-        ? t('quota_management.pool_collecting')
-        : notBy
-    : '—';
-
-  const firstEmptyNode = (() => {
-    if (!view) return '—';
-    if (!view.firstEmpty) {
-      return view.burn === null ? t('quota_management.pool_collecting') : notBy;
-    }
-    const wait = view.firstEmpty.at - now;
-    return (
-      <>
-        <span className={styles.firstName}>
-          <MaskedName text={view.firstEmpty.label} />
-        </span>{' '}
-        {wait <= 0
-          ? t('quota_management.pool_first_empty_now')
-          : t('quota_management.pool_first_empty_in', { duration: formatDuration(wait) })}
-      </>
-    );
-  })();
-
-  const nextResetText =
-    view && view.nextReset
-      ? `${t('quota_management.pool_step_gain', { value: Math.round(view.nextReset.gain) })} ${formatWhen(view.nextReset.t, locale)}`
-      : '—';
+  const common = {
+    provider,
+    samples: providerSamples,
+    now,
+    mode,
+    burnHours,
+    factor,
+    color,
+    locale,
+    providerLabel: label,
+  };
 
   return (
     <section className={styles.card} aria-label={label}>
@@ -106,52 +78,32 @@ export function PoolCard(props: PoolCardProps) {
         {icon && <img src={icon} alt="" className={styles.icon} />}
         <span className={styles.name}>{label}</span>
         <span className={styles.count}>
-          {t('quota_management.pool_accounts', { count: accounts.length || credentialCount })}
+          {t('quota_management.pool_accounts', { count: accountCount })}
         </span>
       </header>
 
-      {view ? (
+      {hasWeekly || hasSession ? (
         <>
-          <div className={styles.summary}>
-            <div className={styles.big}>
-              <span className={styles.bigValue}>{Math.round(view.current)}%</span>
-              <span className={styles.bigOf}>
-                {t('quota_management.pool_of', { total: Math.round(view.capacity) })}
-              </span>
-            </div>
-            <dl className={styles.stats}>
-              <div className={styles.stat}>
-                <dt>{t('quota_management.pool_stat_empty')}</dt>
-                <dd>{poolEmptyText}</dd>
-              </div>
-              <div className={styles.stat}>
-                <dt>{t('quota_management.pool_stat_first_empty')}</dt>
-                <dd>{firstEmptyNode}</dd>
-              </div>
-              <div className={styles.stat}>
-                <dt>{t('quota_management.pool_stat_next_reset')}</dt>
-                <dd>{nextResetText}</dd>
-              </div>
-              <div className={styles.stat}>
-                <dt>{t('quota_management.pool_stat_burn', { hours: burnHours })}</dt>
-                <dd>
-                  {view.burn === null
-                    ? '—'
-                    : t('quota_management.pool_burn_value', { value: view.burn.toFixed(1) })}
-                </dd>
-              </div>
-            </dl>
+          <div className={`${styles.panels} ${hasSession && hasWeekly ? styles.panelsTwo : ''}`}>
+            {hasSession && (
+              <PoolPanel
+                {...common}
+                kind="session"
+                accounts={sessionAccounts}
+                range={sessionRange}
+                projectUntil={sessionRange.to}
+              />
+            )}
+            {hasWeekly && (
+              <PoolPanel
+                {...common}
+                kind="weekly"
+                accounts={weeklyAccounts}
+                range={weeklyRange}
+                projectUntil={weeklyRange.to}
+              />
+            )}
           </div>
-
-          <PoolChart
-            mode={mode}
-            view={view}
-            range={range}
-            now={now}
-            color={color}
-            locale={locale}
-            ariaLabel={t('quota_management.pool_chart_aria', { provider: label })}
-          />
 
           <footer className={styles.legend}>
             <span className={styles.legendTitle}>{t('quota_management.pool_legend_pool')}</span>

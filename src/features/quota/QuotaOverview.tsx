@@ -1,18 +1,27 @@
 /**
- * 额度查询页：池化图表 + 提供商 tabs + 可折叠的账号卡网格。
+ * 额度总览（Overview 页的上半部分）：池化图表 + 提供商 tabs + 可折叠的账号卡网格。
+ * 不带自己的页头；页头、「显示邮箱」开关与「刷新全部」由 Overview 页提供。
  *
  * 加载契约（与上游不同：上游只在点击时加载）：
- * - 页面挂载后，文件列表落定即对全部凭证批量加载一次额度（复用 useQuotaBatchLoader），
+ * - 挂载后，文件列表落定即对全部凭证批量加载一次额度（复用 useQuotaBatchLoader），
  *   之后页面可见（document.visibilityState）时每 10 分钟再加载一次；同一时刻最多一个批次在飞；
- * - 每次加载成功都会把各凭证最长窗口的剩余额度记入浏览器端历史（pool/historyStore），
- *   用于池图表的「已记录」曲线与消耗速率；历史为空时只显示预测；
+ * - 每次加载成功都会把各凭证的最长窗口与 5 小时窗口的剩余额度记入浏览器端历史
+ *   （pool/historyStore），用于池图表的「已记录」曲线与消耗速率；历史为空时只显示预测；
  * - 「账号」开关（默认关）展开原有的搜索/排序、账号卡片网格与额度窗口时间线；
  * - cacheGeneration 会话隔离 + request-id 去重（见 useQuotaBatchLoader）；
  * - 文件列表变化后按 provider 剪枝额度缓存（已删文件不残留）；
- * - useHeaderRefresh 单槽位：本页唯一注册者，全局刷新 = 重取文件列表并重新加载额度。
+ * - 不注册 useHeaderRefresh（单槽位由 Overview 页持有）；Overview 通过 ref 句柄调用 refreshAll。
  */
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useMemo,
+  useRef,
+  useState,
+  type Ref,
+} from 'react';
 import { useTranslation } from 'react-i18next';
 import { authFilesApi } from '@/services/api';
 import { Button } from '@/components/ui/Button';
@@ -20,21 +29,23 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { IconSearch, IconX } from '@/components/ui/icons';
 import { Select } from '@/components/ui/Select';
 import { Skeleton } from '@/components/ui/Skeleton';
-import { useHeaderRefresh } from '@/hooks/useHeaderRefresh';
 import { useNow } from '@/hooks/useNow';
-import { useRevealGroup } from '@/hooks/motion';
 import { useAuthStore, useQuotaStore, useThemeStore } from '@/stores';
 import type { AuthFileItem, ResolvedTheme } from '@/types';
 import { getQuotaCacheKey } from '@/utils/quota/identity';
 import { ProviderTabs } from '@/features/authFiles/components/ProviderTabs';
-import { QuotaHeader } from './components/QuotaHeader';
 import { QuotaCard } from './components/QuotaCard';
 import { QuotaTimeline } from './components/QuotaTimeline';
 import { PoolCard } from './pool/PoolCard';
 import type { PoolChartMode } from './pool/PoolChart';
 import { PoolToolbar } from './pool/PoolToolbar';
 import { buildPoolAccounts } from './pool/poolAccounts';
-import { poolRange, type BurnHours, type FutureFactor } from './pool/poolView';
+import {
+  poolRange,
+  sessionRange as buildSessionRange,
+  type BurnHours,
+  type FutureFactor,
+} from './pool/poolView';
 import { useQuotaHistory, useQuotaHistoryRecorder } from './pool/useQuotaHistory';
 import {
   CARD_ENTRANCE_BUDGET_MS,
@@ -52,6 +63,8 @@ import {
   filterEntriesBySearch,
   paginate,
   sortQuotaEntries,
+  resolveActiveQuotaTab,
+  visibleQuotaTabs,
   type QuotaFileEntry,
 } from './logic';
 import { nextRecoveryMs } from './resetSchedule';
@@ -62,7 +75,6 @@ import { useQuotaBatchLoader } from './hooks/useQuotaBatchLoader';
 import { readQuotaUiState, writeQuotaUiState } from './uiState';
 import styles from './QuotaPage.module.scss';
 
-const TAB_IDS: string[] = ['all', ...QUOTA_TAB_ORDER];
 const SKELETON_CARD_COUNT = 6;
 /** Background quota reload cadence while the tab is visible. */
 const QUOTA_AUTO_REFRESH_MS = 10 * 60 * 1000;
@@ -74,7 +86,24 @@ const AUTO_REFRESH_POLL_MS = 30 * 1000;
  */
 const displayNameFor = (name: string) => name;
 
-export function QuotaPage() {
+export interface QuotaOverviewHandle {
+  /** Re-fetch the file list, then batch-load every credential's quota. */
+  refreshAll: () => void;
+}
+
+export interface QuotaOverviewSummary {
+  credentialCount: number;
+  loadedCount: number;
+  refreshing: boolean;
+}
+
+export interface QuotaOverviewProps {
+  showEmails: boolean;
+  onSummaryChange?: (summary: QuotaOverviewSummary) => void;
+  ref?: Ref<QuotaOverviewHandle>;
+}
+
+export function QuotaOverview({ showEmails, onSummaryChange, ref }: QuotaOverviewProps) {
   const { t, i18n } = useTranslation();
   const apiBase = useAuthStore((state) => state.apiBase);
   const connectionStatus = useAuthStore((state) => state.connectionStatus);
@@ -83,12 +112,9 @@ export function QuotaPage() {
   const [files, setFiles] = useState<AuthFileItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [tab, setTab] = useState<QuotaTabId>(() => readQuotaUiState()?.tab ?? 'all');
+  const [storedTab, setStoredTab] = useState<QuotaTabId>(() => readQuotaUiState()?.tab ?? 'all');
   const [sortMode, setSortMode] = useState<QuotaSortMode>(
     () => readQuotaUiState()?.sortMode ?? 'default'
-  );
-  const [showEmails, setShowEmails] = useState<boolean>(
-    () => readQuotaUiState()?.showEmails ?? false
   );
   const [showAccounts, setShowAccounts] = useState<boolean>(
     () => readQuotaUiState()?.showAccounts ?? false
@@ -96,12 +122,9 @@ export function QuotaPage() {
   const [poolMode, setPoolMode] = useState<PoolChartMode>('remaining');
   const [burnHours, setBurnHours] = useState<BurnHours>(3);
   const [factor, setFactor] = useState<FutureFactor>(1);
-  const [rangeOffsetWeeks, setRangeOffsetWeeks] = useState(0);
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
   const searchInputRef = useRef<HTMLInputElement>(null);
-  // 页头 + tabs 的入场级联（标题 → meta → 动作 → tabs，级差 70ms）
-  const revealRef = useRevealGroup<HTMLDivElement>();
 
   const disableControls = connectionStatus !== 'connected';
 
@@ -136,8 +159,6 @@ export function QuotaPage() {
       if (isCurrent()) setLoading(false);
     }
   }, [connectionStatus, sessionGeneration, t]);
-
-  useHeaderRefresh(loadFiles);
 
   useEffect(() => {
     void loadFiles();
@@ -197,6 +218,9 @@ export function QuotaPage() {
 
   const entries = useMemo(() => classifyQuotaFiles(files), [files]);
   const tabCounts = useMemo(() => buildTabCounts(entries), [entries]);
+  // 只显示有凭证的提供商；只有一个提供商时整行隐藏。持久化的 tab 指向隐藏项时回落到 all。
+  const tabIds = useMemo(() => visibleQuotaTabs(tabCounts), [tabCounts]);
+  const tab = resolveActiveQuotaTab(storedTab, tabIds);
   const filteredEntries = useMemo(
     () => filterEntriesBySearch(filterEntriesByTab(entries, tab), search),
     [entries, tab, search]
@@ -222,7 +246,7 @@ export function QuotaPage() {
   );
 
   const handleTabChange = useCallback((next: string) => {
-    setTab(next as QuotaTabId);
+    setStoredTab(next as QuotaTabId);
     setPage(1);
     writeQuotaUiState({ tab: next as QuotaTabId });
   }, []);
@@ -239,15 +263,12 @@ export function QuotaPage() {
     [t]
   );
 
-  const { loadedCount, attentionCount } = useMemo(() => {
+  const loadedCount = useMemo(() => {
     let loaded = 0;
-    let attention = 0;
     entries.forEach((entry) => {
-      const status = quotaByType[entry.type][getQuotaCacheKey(entry.file)]?.status;
-      if (status === 'success') loaded += 1;
-      else if (status === 'error') attention += 1;
+      if (quotaByType[entry.type][getQuotaCacheKey(entry.file)]?.status === 'success') loaded += 1;
     });
-    return { loadedCount: loaded, attentionCount: attention };
+    return loaded;
   }, [entries, quotaByType]);
 
   // 剪枝：文件列表落定后，各 provider 缓存只保留仍存在的凭证
@@ -288,6 +309,13 @@ export function QuotaPage() {
     lastAutoLoadAtRef.current = Date.now();
     void loadFiles();
   }, [disableControls, loadFiles, sessionGeneration]);
+
+  useImperativeHandle(ref, () => ({ refreshAll: handleRefreshAll }), [handleRefreshAll]);
+
+  const refreshing = loading || batchLoading;
+  useEffect(() => {
+    onSummaryChange?.({ credentialCount: entries.length, loadedCount, refreshing });
+  }, [entries.length, loadedCount, onSummaryChange, refreshing]);
 
   useEffect(() => {
     const wasLoading = prevLoadingRef.current;
@@ -351,10 +379,7 @@ export function QuotaPage() {
   const poolNow = useNow();
   const { samples, reload: reloadHistory } = useQuotaHistory(apiBase);
   useQuotaHistoryRecorder(apiBase, entries, getQuota, reloadHistory);
-  const poolAccountsByType = useMemo(
-    () => buildPoolAccounts(entries, getQuota),
-    [entries, getQuota]
-  );
+  const poolAccountSets = useMemo(() => buildPoolAccounts(entries, getQuota), [entries, getQuota]);
   const credentialCounts = useMemo(() => {
     const counts = new Map<QuotaProviderType, number>();
     entries.forEach((entry) => counts.set(entry.type, (counts.get(entry.type) ?? 0) + 1));
@@ -367,13 +392,10 @@ export function QuotaPage() {
       ),
     [credentialCounts, tab]
   );
-  const range = useMemo(() => poolRange(poolNow, rangeOffsetWeeks), [poolNow, rangeOffsetWeeks]);
+  // 池图表的区间：周窗口固定 14 天（回看 3 天），5 小时窗口为 now-12h … now+24h。
+  const weeklyRange = useMemo(() => poolRange(poolNow, 0), [poolNow]);
+  const sessionRange = useMemo(() => buildSessionRange(poolNow), [poolNow]);
 
-  const handleToggleEmails = useCallback(() => {
-    const next = !showEmails;
-    setShowEmails(next);
-    writeQuotaUiState({ showEmails: next });
-  }, [showEmails]);
   const handleToggleAccounts = useCallback(() => {
     const next = !showAccounts;
     setShowAccounts(next);
@@ -535,44 +557,30 @@ export function QuotaPage() {
   );
 
   return (
-    <div className={`${styles.page} ${showEmails ? '' : styles.emailsHidden}`} ref={revealRef}>
-      <QuotaHeader
-        totalCount={entries.length}
-        loadedCount={loadedCount}
-        attentionCount={attentionCount}
-        refreshing={loading || batchLoading}
-        disableControls={disableControls}
-        showEmails={showEmails}
-        onToggleEmails={handleToggleEmails}
-        onRefreshAll={handleRefreshAll}
-      />
-
+    <div className={`${styles.page} ${showEmails ? '' : styles.emailsHidden}`}>
       <section className={styles.workbench}>
         {/* 提供商导航与池图表分层，避免不同控件争夺视觉焦点。 */}
-        <div className={styles.tabsRow} data-reveal>
-          <ProviderTabs
-            types={TAB_IDS}
-            counts={tabCounts}
-            active={tab}
-            resolvedTheme={resolvedTheme}
-            onChange={handleTabChange}
-          />
-        </div>
+        {tabIds.length > 0 && (
+          <div className={styles.tabsRow}>
+            <ProviderTabs
+              types={tabIds}
+              counts={tabCounts}
+              active={tab}
+              resolvedTheme={resolvedTheme}
+              onChange={handleTabChange}
+            />
+          </div>
+        )}
 
         <PoolToolbar
           mode={poolMode}
           burnHours={burnHours}
           factor={factor}
           showAccounts={showAccounts}
-          range={range}
-          offsetWeeks={rangeOffsetWeeks}
-          locale={i18n.language}
           onModeChange={setPoolMode}
           onBurnHoursChange={setBurnHours}
           onFactorChange={setFactor}
           onToggleAccounts={handleToggleAccounts}
-          onShiftRange={(weeks) => setRangeOffsetWeeks((prev) => prev + weeks)}
-          onResetRange={() => setRangeOffsetWeeks(0)}
         />
 
         {error && (
@@ -598,11 +606,13 @@ export function QuotaPage() {
               <PoolCard
                 key={type}
                 provider={type}
-                accounts={poolAccountsByType.get(type) ?? []}
+                weeklyAccounts={poolAccountSets.weekly.get(type) ?? []}
+                sessionAccounts={poolAccountSets.session.get(type) ?? []}
                 credentialCount={credentialCounts.get(type) ?? 0}
                 samples={samples}
                 now={poolNow}
-                range={range}
+                weeklyRange={weeklyRange}
+                sessionRange={sessionRange}
                 mode={poolMode}
                 burnHours={burnHours}
                 factor={factor}

@@ -1,14 +1,14 @@
 /**
  * Inline-SVG pool chart: recorded line (solid) and projection (dashed) with
- * soft area fills, day grid, a "Now" marker, reset step labels, and a hover
+ * soft area fills, a tick grid (days or clock hours, supplied by the caller), a "Now" marker, reset step labels, and a hover
  * crosshair. No chart dependency; geometry is plain arithmetic on the range.
  */
 
 import { useEffect, useId, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { useTranslation } from 'react-i18next';
-import { formatDayTick, formatWhen, niceMax } from './poolFormat';
+import { formatWhen, niceMax } from './poolFormat';
 import { findRecordedSteps, findSteps, valueAt, type PoolPoint } from './poolModel';
-import { dayTicks, type PoolRange, type PoolView } from './poolView';
+import type { PoolRange, PoolTick, PoolView } from './poolView';
 import styles from './PoolChart.module.scss';
 
 export type PoolChartMode = 'remaining' | 'drain';
@@ -17,6 +17,10 @@ export interface PoolChartProps {
   mode: PoolChartMode;
   view: PoolView;
   range: PoolRange;
+  /** Grid lines and axis labels. */
+  ticks: readonly PoolTick[];
+  /** `between`: label centred in the slot after the tick (days). `at`: centred on the tick. */
+  tickLabelPlacement: 'between' | 'at';
   now: number;
   /** CSS colour for the series (a hex value or a var()). */
   color: string;
@@ -24,7 +28,7 @@ export interface PoolChartProps {
   ariaLabel: string;
 }
 
-const HEIGHT = 300;
+const HEIGHT = 220;
 const MARGIN = { left: 52, right: 16, top: 30, bottom: 30 };
 
 function useElementWidth<T extends HTMLElement>() {
@@ -64,7 +68,7 @@ function clipSeries(points: readonly PoolPoint[], range: PoolRange): PoolPoint[]
 }
 
 export function PoolChart(props: PoolChartProps) {
-  const { mode, view, range, now, color, locale, ariaLabel } = props;
+  const { mode, view, range, ticks, tickLabelPlacement, now, color, locale, ariaLabel } = props;
   const { t } = useTranslation();
   const gradientBase = useId().replace(/[^a-zA-Z0-9_-]/g, '');
   const { ref, width } = useElementWidth<HTMLDivElement>();
@@ -112,9 +116,8 @@ export function PoolChart(props: PoolChartProps) {
     [projected, now, range]
   );
 
-  const ticks = useMemo(() => dayTicks(range), [range]);
-  const dayW = plotW / Math.max(ticks.length, 1);
-  const tickEvery = dayW < 30 ? 3 : dayW < 56 ? 2 : 1;
+  const slotW = plotW / Math.max(ticks.length, 1);
+  const tickEvery = slotW < 30 ? 3 : slotW < 56 ? 2 : 1;
 
   const steps = useMemo(() => {
     if (mode !== 'remaining') return [];
@@ -219,19 +222,15 @@ export function PoolChart(props: PoolChartProps) {
           ))}
 
           {ticks.map((tick, index) => {
-            const left = x(tick);
-            const next = index + 1 < ticks.length ? x(ticks[index + 1]) : MARGIN.left + plotW;
+            const left = x(tick.t);
+            const next = index + 1 < ticks.length ? x(ticks[index + 1].t) : MARGIN.left + plotW;
+            const labelX = tickLabelPlacement === 'at' ? left : (left + next) / 2;
             return (
-              <g key={tick}>
+              <g key={tick.t}>
                 <line className={styles.gridV} x1={left} x2={left} y1={MARGIN.top} y2={baseY} />
                 {index % tickEvery === 0 && (
-                  <text
-                    className={styles.axisText}
-                    x={(left + next) / 2}
-                    y={baseY + 18}
-                    textAnchor="middle"
-                  >
-                    {formatDayTick(tick, locale)}
+                  <text className={styles.axisText} x={labelX} y={baseY + 18} textAnchor="middle">
+                    {tick.label}
                   </text>
                 )}
               </g>

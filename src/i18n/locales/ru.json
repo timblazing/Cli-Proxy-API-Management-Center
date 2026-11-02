@@ -111,7 +111,12 @@
     "plugin_store": "Магазин плагинов",
     "config_management": "Панель конфигурации",
     "logs": "Просмотр логов",
-    "system_info": "Информация системы"
+    "system_info": "Информация системы",
+    "overview": "Overview",
+    "accounts": "Accounts",
+    "providers": "Providers",
+    "logs_short": "Logs",
+    "settings": "Settings"
   },
   "nav_groups": {
     "operate": "Работа",
@@ -131,7 +136,11 @@
     "plugin_store": "Поиск и установка плагинов",
     "logs": "Трассировка запросов",
     "config_management": "Базовая конфигурация шлюза",
-    "system_info": "Состояние и диагностика"
+    "system_info": "Состояние и диагностика",
+    "overview": "Quotas, traffic and runtime",
+    "accounts": "Credentials and sign-in",
+    "providers": "Upstream providers and routing",
+    "settings": "Config, system and plugins"
   },
   "dashboard": {
     "hero_verdict_good": "Всё стабильно",
@@ -1647,10 +1656,6 @@
     "pool_future_lighter": "Lighter (0.5×)",
     "pool_future_heavier": "Heavier (1.5×)",
     "pool_accounts_toggle": "Accounts",
-    "pool_range": "{{start}} to {{end}}",
-    "pool_range_today": "Today",
-    "pool_range_prev": "Previous range",
-    "pool_range_next": "Next range",
     "pool_accounts_one": "{{count}} account",
     "pool_accounts_few": "{{count}} accounts",
     "pool_accounts_many": "{{count}} accounts",
@@ -1664,6 +1669,7 @@
     "pool_not_by": "Not by {{date}}",
     "pool_first_empty_in": "in {{duration}}",
     "pool_first_empty_now": "now",
+    "pool_empty_now": "Empty now",
     "pool_burn_value": "{{value}}%/h",
     "pool_step_gain": "+{{value}}%",
     "pool_now": "Now",
@@ -1674,7 +1680,9 @@
     "pool_legend_recorded": "Recorded",
     "pool_legend_projected": "Projected",
     "pool_no_data": "Quota has not loaded for this provider yet.",
-    "pool_chart_aria": "{{provider}} pooled quota chart"
+    "pool_window_session": "5-hour",
+    "pool_window_weekly": "Weekly",
+    "pool_chart_aria_window": "{{provider}} {{window}} pooled quota chart"
   },
   "routing": {
     "title": "Маршрутизация",
@@ -2456,5 +2464,21 @@
     "error": "Привязка не удалась. Начните заново.",
     "unsupported": "Этот сервер не поддерживает привязку SIWC.",
     "expired": "Сеанс привязки истёк. Начните заново."
+  },
+  "section_tabs": {
+    "aria": "Section navigation",
+    "accounts": "Accounts",
+    "add_account": "Add account",
+    "providers": "Providers",
+    "routing": "Routing",
+    "config": "Config",
+    "system": "System",
+    "plugins": "Plugins",
+    "plugin_store": "Plugin store"
+  },
+  "overview": {
+    "title": "Overview",
+    "traffic": "Traffic",
+    "runtime": "Runtime"
   }
 }

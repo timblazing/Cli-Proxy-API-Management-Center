@@ -32,6 +32,16 @@ export function formatDayTick(ts: number, locale: string): string {
   return `${weekday} ${day}`;
 }
 
+/** "Tue" — midnight tick on the session axis. */
+export function formatWeekday(ts: number, locale: string): string {
+  return formatter(locale, { weekday: 'short' }).format(ts);
+}
+
+/** "6 PM" — session axis tick. */
+export function formatHourTick(ts: number, locale: string): string {
+  return formatter(locale, { hour: 'numeric' }).format(ts);
+}
+
 /** "Oct 23" */
 export function formatMonthDay(ts: number, locale: string): string {
   return formatter(locale, { month: 'short', day: 'numeric' }).format(ts);
