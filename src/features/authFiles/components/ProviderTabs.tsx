@@ -21,7 +21,7 @@ export type ProviderTabsProps = {
 
 /**
  * 提供商过滤 tabs：水平排布，支持鼠标滚轮与触屏横向滚动。
- * 品牌色只出现在图标上，激活态是文字 + 2px 墨色下划线。
+ * 品牌色只出现在图标上，激活态是 --bg-tertiary 底 + 主文字色。
  */
 export function ProviderTabs({
   types,
