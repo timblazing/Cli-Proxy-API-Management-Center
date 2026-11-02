@@ -31,6 +31,7 @@ import {
 import type { TimelineLane, TimelineMode } from '../quotaTimelineModel';
 import type { QuotaFileEntry } from '../logic';
 import type { QuotaCardState } from '../providers';
+import { MaskedName } from './MaskedName';
 import styles from './QuotaTimeline.module.scss';
 
 const WEEKDAY_KEYS = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'] as const;
@@ -358,7 +359,7 @@ function Lane({ lane, span, now, mode, cells, nowPercent, resolvedTheme }: LaneP
         <div className={styles.laneTop}>
           <span className={styles.laneDot} />
           <span className={styles.laneName} title={lane.displayName}>
-            {lane.displayName}
+            <MaskedName text={lane.displayName} />
           </span>
           {periodLabel && <span className={styles.lanePeriod}>{periodLabel}</span>}
         </div>

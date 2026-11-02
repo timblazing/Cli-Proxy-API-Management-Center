@@ -22,6 +22,7 @@ import { useClaudeResetGrants } from '../providers/claude/ClaudeResetGrants';
 import { ClaudeResetGrantDetails } from '../providers/claude/ClaudeResetGrantDetails';
 import { hasClaudeUsageData } from '../providers/claude/data';
 import bodyStyles from './QuotaBody.module.scss';
+import { MaskedName } from './MaskedName';
 import styles from './QuotaCard.module.scss';
 
 /** Bind the quota-page styles to the shared rendering contract. */
@@ -132,7 +133,7 @@ export function QuotaCard(props: QuotaCardProps) {
           )}
         </span>
         <span className={styles.fileName} title={displayName}>
-          {displayName}
+          <MaskedName text={displayName} email={file.email} />
         </span>
       </header>
 

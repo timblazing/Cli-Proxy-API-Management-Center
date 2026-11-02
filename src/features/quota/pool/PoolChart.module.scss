@@ -1,0 +1,104 @@
+.chart {
+  position: relative;
+  width: 100%;
+  min-width: 0;
+  /* Pointer position drives the crosshair; keep vertical scroll on touch. */
+  touch-action: pan-y;
+}
+
+.svg {
+  display: block;
+  overflow: visible;
+}
+
+.gridH,
+.gridV {
+  stroke: var(--border-color);
+  stroke-width: 1;
+}
+
+.gridH {
+  opacity: 0.8;
+}
+
+.gridV {
+  opacity: 0.45;
+}
+
+.axisText {
+  fill: var(--text-tertiary);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.lineRecorded,
+.lineProjected {
+  fill: none;
+  stroke: var(--pool-color);
+  stroke-width: 2;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+.lineProjected {
+  stroke-dasharray: 5 4;
+}
+
+.nowLine {
+  stroke: var(--text-quaternary);
+  stroke-width: 1;
+}
+
+.nowText {
+  fill: var(--text-tertiary);
+  font-size: 12px;
+}
+
+.stepText {
+  fill: var(--text-secondary);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  paint-order: stroke;
+  stroke: var(--bg-primary);
+  stroke-width: 3px;
+}
+
+.emptyMarker {
+  fill: var(--bg-primary);
+  stroke: var(--text-primary);
+  stroke-width: 2;
+}
+
+.emptyText {
+  fill: var(--text-primary);
+  font-size: 12px;
+  paint-order: stroke;
+  stroke: var(--bg-primary);
+  stroke-width: 3px;
+}
+
+.crosshair {
+  stroke: var(--text-quaternary);
+  stroke-width: 1;
+}
+
+.hoverDot {
+  fill: var(--pool-color);
+  stroke: var(--bg-primary);
+  stroke-width: 2;
+}
+
+.tooltip {
+  position: absolute;
+  transform: translateX(-50%);
+  padding: 5px 10px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 2;
+}
