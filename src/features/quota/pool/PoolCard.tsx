@@ -1,9 +1,10 @@
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { getAuthFileIcon, getTypeLabel, TYPE_COLORS } from '@/features/authFiles/constants';
+import { getAuthFileIcon, getTypeLabel } from '@/features/authFiles/constants';
 import type { ResolvedTheme } from '@/types';
 import { MaskedName } from '../components/MaskedName';
 import type { QuotaProviderType } from '../providers/types';
+import { poolColor } from './poolColor';
 import { PoolChart, type PoolChartMode } from './PoolChart';
 import { formatDuration, formatMonthDay, formatWhen } from './poolFormat';
 import type { PoolAccountInfo } from './poolAccounts';
@@ -16,15 +17,6 @@ import {
   type PoolRange,
 } from './poolView';
 import styles from './PoolCard.module.scss';
-
-/** Provider series colours; others fall back to their brand text colour. */
-const POOL_COLORS: Partial<Record<QuotaProviderType, string>> = {
-  claude: '#e07a5f',
-  codex: '#7c9cff',
-};
-
-export const poolColor = (type: QuotaProviderType, theme: ResolvedTheme): string =>
-  POOL_COLORS[type] ?? TYPE_COLORS[type]?.[theme]?.text ?? 'var(--text-secondary)';
 
 export interface PoolCardProps {
   provider: QuotaProviderType;
@@ -80,7 +72,9 @@ export function PoolCard(props: PoolCardProps) {
   const poolEmptyText = view
     ? view.poolEmpty !== null
       ? formatWhen(view.poolEmpty, locale)
-      : notBy
+      : view.burn === null
+        ? t('quota_management.pool_collecting')
+        : notBy
     : '—';
 
   const firstEmptyNode = (() => {
@@ -138,7 +132,11 @@ export function PoolCard(props: PoolCardProps) {
               </div>
               <div className={styles.stat}>
                 <dt>{t('quota_management.pool_stat_burn', { hours: burnHours })}</dt>
-                <dd>{t('quota_management.pool_burn_value', { value: view.burn.toFixed(1) })}</dd>
+                <dd>
+                  {view.burn === null
+                    ? '—'
+                    : t('quota_management.pool_burn_value', { value: view.burn.toFixed(1) })}
+                </dd>
               </div>
             </dl>
           </div>

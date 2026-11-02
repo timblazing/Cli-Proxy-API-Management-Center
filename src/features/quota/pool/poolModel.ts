@@ -99,20 +99,23 @@ export function aggregate(samples: readonly PoolSample[]): PoolPoint[] {
   return points;
 }
 
+const MIN_BURN_SPAN_MS = 30 * 60_000;
+
 /**
  * Pool burn in percentage points per hour over the trailing `windowHours`.
  *
  * Only downward movement counts: an upward jump is a reset, not negative
  * burn. The divisor is the span the history actually covers inside the window
  * (capped at the window), so a short history is not diluted by time nobody
- * recorded. Returns 0 without at least two points in the window.
+ * recorded. Returns null unless the samples span at least
+ * max(30 min, window / 3), so sparse history never yields a rate.
  */
 export function burnRate(
   series: readonly PoolPoint[],
   windowHours: number,
   now: number = series.length > 0 ? series[series.length - 1].t : 0
-): number {
-  if (!(windowHours > 0) || series.length < 2) return 0;
+): number | null {
+  if (!(windowHours > 0) || series.length < 2) return null;
   const from = now - windowHours * HOUR_MS;
   const inWindow = series.filter((point) => point.t >= from && point.t <= now);
   // A drop straddling the window start is clipped to the window by
@@ -129,7 +132,11 @@ export function burnRate(
           ...inWindow,
         ]
       : inWindow;
-  if (scoped.length < 2) return 0;
+  if (scoped.length < 2) return null;
+
+  // Too little history makes a one-point tick look like a steep burn.
+  const minSpanMs = Math.max(MIN_BURN_SPAN_MS, (windowHours * HOUR_MS) / 3);
+  if (scoped[scoped.length - 1].t - scoped[0].t < minSpanMs) return null;
 
   let drained = 0;
   for (let index = 1; index < scoped.length; index += 1) {
@@ -138,7 +145,7 @@ export function burnRate(
   }
   const start = Math.max(from, scoped[0].t);
   const covered = Math.min(windowHours * HOUR_MS, Math.max(now - start, 0));
-  if (covered < 60_000) return 0;
+  if (covered < 60_000) return null;
   return drained / (covered / HOUR_MS);
 }
 
@@ -155,7 +162,8 @@ export function burnSeries(
   const first = series[0].t;
   for (let t = from; t <= to; t += stepMs) {
     if (t < first) continue;
-    out.push({ t, v: burnRate(series, windowHours, t) });
+    const v = burnRate(series, windowHours, t);
+    if (v !== null) out.push({ t, v });
   }
   return out;
 }

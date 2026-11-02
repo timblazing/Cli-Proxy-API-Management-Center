@@ -6,7 +6,7 @@ import {
   shouldRecordSample,
 } from '../src/features/quota/pool/historyStore';
 import { RANGE_DAYS, dayTicks, poolRange } from '../src/features/quota/pool/poolView';
-import { splitEmailSegments } from '../src/features/quota/components/MaskedName';
+import { maskEmailsInText, splitEmailSegments } from '../src/features/quota/components/maskEmail';
 
 describe('history store helpers', () => {
   test('dedupes samples closer than 60s', () => {
@@ -50,5 +50,15 @@ describe('splitEmailSegments', () => {
       { text: 'Work: ', email: false },
       { text: 'me@x.io', email: true },
     ]);
+  });
+});
+
+describe('maskEmailsInText', () => {
+  test('keeps text when emails are shown', () => {
+    expect(maskEmailsInText('claude-a@example.com', true)).toBe('claude-a@example.com');
+  });
+
+  test('keeps the prefix and first 3 chars of the email, then an ellipsis', () => {
+    expect(maskEmailsInText('claude-blasingame@gmail.com (pro)', false)).toBe('claude-bla… (pro)');
   });
 });

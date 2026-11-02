@@ -23,6 +23,7 @@ import { ClaudeResetGrantDetails } from '../providers/claude/ClaudeResetGrantDet
 import { hasClaudeUsageData } from '../providers/claude/data';
 import bodyStyles from './QuotaBody.module.scss';
 import { MaskedName } from './MaskedName';
+import { maskEmailsInText } from './maskEmail';
 import styles from './QuotaCard.module.scss';
 
 /** Bind the quota-page styles to the shared rendering contract. */
@@ -34,6 +35,8 @@ export type QuotaCardProps = {
   resolvedTheme: ResolvedTheme;
   canRefresh: boolean;
   resetting: boolean;
+  /** When false, tooltips mask the email (CSS blurs the visible text). */
+  showEmails?: boolean;
   /** Initial cascade delay; null disables entrance motion for later mounts. */
   entranceDelayMs?: number | null;
   onRefresh: () => void;
@@ -47,6 +50,7 @@ export function QuotaCard(props: QuotaCardProps) {
     resolvedTheme,
     canRefresh,
     resetting,
+    showEmails = true,
     entranceDelayMs,
     onRefresh,
     onReset,
@@ -132,7 +136,10 @@ export function QuotaCard(props: QuotaCardProps) {
             <span className={styles.iconFallback}>{typeLabel.slice(0, 1).toUpperCase()}</span>
           )}
         </span>
-        <span className={styles.fileName} title={displayName}>
+        <span
+          className={styles.fileName}
+          title={maskEmailsInText(displayName, showEmails, file.email)}
+        >
           <MaskedName text={displayName} email={file.email} />
         </span>
       </header>

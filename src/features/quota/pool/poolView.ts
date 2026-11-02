@@ -75,7 +75,8 @@ export interface PoolViewInput {
 export interface PoolView {
   capacity: number;
   current: number;
-  burn: number;
+  /** Percentage points per hour, or null while history is too sparse. */
+  burn: number | null;
   recorded: PoolPoint[];
   projected: PoolPoint[];
   burnRecorded: PoolPoint[];
@@ -114,7 +115,7 @@ export function buildPoolView(input: PoolViewInput): PoolView {
   const { points: projectedFull, firstEmpty } = simulate(
     now,
     accounts,
-    burn,
+    burn ?? 0,
     factor,
     projectedUntil
   );
@@ -125,7 +126,11 @@ export function buildPoolView(input: PoolViewInput): PoolView {
   const step = Math.max(HOUR_MS, Math.round((range.to - range.from) / 240));
   const burnStart = Math.max(range.from, recorded[0].t);
   const burnRecorded = burnSeries(recorded, burnHours, burnStart, now, step);
-  const projectedBurn = burn * factor;
+  // The recorded line must end exactly at "now" so the projection joins it with no gap.
+  if (burn !== null && burnRecorded[burnRecorded.length - 1]?.t !== now) {
+    burnRecorded.push({ t: now, v: burn });
+  }
+  const projectedBurn = (burn ?? 0) * factor;
 
   return {
     capacity,
@@ -134,10 +139,13 @@ export function buildPoolView(input: PoolViewInput): PoolView {
     recorded,
     projected,
     burnRecorded,
-    burnProjected: [
-      { t: now, v: projectedBurn },
-      { t: projectedUntil, v: projectedBurn },
-    ],
+    burnProjected:
+      burn === null
+        ? []
+        : [
+            { t: now, v: projectedBurn },
+            { t: projectedUntil, v: projectedBurn },
+          ],
     poolEmpty: poolEmptyAt(projected),
     firstEmpty: firstEmpty ? { at: firstEmpty.at, label: labelFor(firstEmpty.key) } : null,
     nextReset: nextReset(projected, now),

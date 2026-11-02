@@ -4,11 +4,9 @@ import { IconChevronLeft, IconChevronRight } from '@/components/ui/icons';
 import { Select } from '@/components/ui/Select';
 import type { PoolChartMode } from './PoolChart';
 import { formatMonthDay } from './poolFormat';
+import { BURN_HOURS_OPTIONS } from './toolbarOptions';
 import type { BurnHours, FutureFactor, PoolRange } from './poolView';
 import styles from './PoolToolbar.module.scss';
-
-export const BURN_HOURS_OPTIONS: readonly BurnHours[] = [1, 3, 6];
-export const FUTURE_FACTOR_OPTIONS: readonly FutureFactor[] = [1, 0.5, 1.5];
 
 export interface PoolToolbarProps {
   mode: PoolChartMode;

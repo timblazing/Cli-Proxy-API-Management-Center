@@ -32,6 +32,7 @@ import type { TimelineLane, TimelineMode } from '../quotaTimelineModel';
 import type { QuotaFileEntry } from '../logic';
 import type { QuotaCardState } from '../providers';
 import { MaskedName } from './MaskedName';
+import { maskEmailsInText } from './maskEmail';
 import styles from './QuotaTimeline.module.scss';
 
 const WEEKDAY_KEYS = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'] as const;
@@ -56,6 +57,8 @@ export interface QuotaTimelineProps {
   quotaFor: (entry: QuotaFileEntry) => QuotaCardState | undefined;
   displayNameFor: (name: string) => string;
   resolvedTheme: ResolvedTheme;
+  /** When false, tooltips mask emails (CSS blurs the visible lane names). */
+  showEmails?: boolean;
   /** Injectable for tests/screenshots; defaults to the real clock. */
   now?: number;
   /** Injectable initial zoom for tests/screenshots; defaults to the weekly view. */
@@ -69,6 +72,7 @@ export function QuotaTimeline({
   quotaFor,
   displayNameFor,
   resolvedTheme,
+  showEmails = true,
   now: nowProp,
   initialMode = 'weekly',
   initialOffset = 0,
@@ -274,6 +278,7 @@ export function QuotaTimeline({
                 cells={cells}
                 nowPercent={nowPercent}
                 resolvedTheme={resolvedTheme}
+                showEmails={showEmails}
               />
             ))}
           </>
@@ -325,9 +330,10 @@ interface LaneProps {
   cells: { at: number; isWeekend: boolean; isDayStart: boolean }[];
   nowPercent: number | null;
   resolvedTheme: ResolvedTheme;
+  showEmails: boolean;
 }
 
-function Lane({ lane, span, now, mode, cells, nowPercent, resolvedTheme }: LaneProps) {
+function Lane({ lane, span, now, mode, cells, nowPercent, resolvedTheme, showEmails }: LaneProps) {
   const { t, i18n } = useTranslation();
 
   const windows = useMemo(
@@ -358,7 +364,7 @@ function Lane({ lane, span, now, mode, cells, nowPercent, resolvedTheme }: LaneP
       <div className={styles.laneHead}>
         <div className={styles.laneTop}>
           <span className={styles.laneDot} />
-          <span className={styles.laneName} title={lane.displayName}>
+          <span className={styles.laneName} title={maskEmailsInText(lane.displayName, showEmails)}>
             <MaskedName text={lane.displayName} />
           </span>
           {periodLabel && <span className={styles.lanePeriod}>{periodLabel}</span>}
@@ -408,7 +414,7 @@ function Lane({ lane, span, now, mode, cells, nowPercent, resolvedTheme }: LaneP
                 key={window.startMs}
                 className={`${styles.window} ${styles[`window${capitalize(window.state)}`]}`}
                 style={{ left: `${window.leftPercent}%`, width: `${window.widthPercent}%` }}
-                title={`${lane.displayName}\n${formatDay(window.startMs)} ${formatTime(
+                title={`${maskEmailsInText(lane.displayName, showEmails)}\n${formatDay(window.startMs)} ${formatTime(
                   window.startMs
                 )} → ${formatDay(window.endMs)} ${formatTime(window.endMs)}${
                   window.remaining !== null ? `\n${window.remaining}% remaining` : ''

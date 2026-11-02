@@ -73,18 +73,39 @@ describe('burnRate', () => {
     expect(burnRate(withReset, 3, NOW)).toBeCloseTo(2, 5);
   });
 
-  test('divides by the covered span when history is short', () => {
-    const short: PoolPoint[] = [
-      { t: NOW - H, v: 200 },
-      { t: NOW, v: 196 },
+  test('returns null when history is too sparse', () => {
+    const tick: PoolPoint[] = [
+      { t: NOW - 5 * 60_000, v: 200 },
+      { t: NOW, v: 199 },
     ];
-    expect(burnRate(short, 6, NOW)).toBeCloseTo(4, 5);
+    expect(burnRate(tick, 3, NOW)).toBeNull();
+    // 1h of history is not enough for a 6h window (needs 2h).
+    expect(
+      burnRate(
+        [
+          { t: NOW - H, v: 200 },
+          { t: NOW, v: 196 },
+        ],
+        6,
+        NOW
+      )
+    ).toBeNull();
   });
 
-  test('is zero without enough data', () => {
-    expect(burnRate([], 3, NOW)).toBe(0);
-    expect(burnRate([{ t: NOW, v: 10 }], 3, NOW)).toBe(0);
-    expect(burnRate(series, 0, NOW)).toBe(0);
+  test('computes a steady rate from total drop over elapsed time', () => {
+    const steady: PoolPoint[] = [
+      { t: NOW - 3 * H, v: 200 },
+      { t: NOW - 2 * H, v: 198 },
+      { t: NOW - H, v: 196 },
+      { t: NOW, v: 194 },
+    ];
+    expect(burnRate(steady, 3, NOW)).toBeCloseTo(2, 5);
+  });
+
+  test('is null without enough data', () => {
+    expect(burnRate([], 3, NOW)).toBeNull();
+    expect(burnRate([{ t: NOW, v: 10 }], 3, NOW)).toBeNull();
+    expect(burnRate(series, 0, NOW)).toBeNull();
   });
 
   test('burnSeries yields a rolling rate on a grid', () => {
