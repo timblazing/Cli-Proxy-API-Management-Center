@@ -9,6 +9,10 @@ import {
 export type QuotaUiState = {
   tab?: QuotaTabId;
   sortMode?: QuotaSortMode;
+  /** Reveal the email part of credential names (blurred by default). */
+  showEmails?: boolean;
+  /** Reveal the per-account cards and quota windows timeline under the pools. */
+  showAccounts?: boolean;
 };
 
 const QUOTA_UI_STATE_KEY = 'quotaPage.uiState';
@@ -32,6 +36,8 @@ export const readQuotaUiState = (): QuotaUiState | null => {
     return {
       tab: isQuotaTabId(parsed.tab) ? parsed.tab : undefined,
       sortMode: isQuotaSortMode(parsed.sortMode) ? parsed.sortMode : undefined,
+      showEmails: typeof parsed.showEmails === 'boolean' ? parsed.showEmails : undefined,
+      showAccounts: typeof parsed.showAccounts === 'boolean' ? parsed.showAccounts : undefined,
     };
   } catch {
     return null;

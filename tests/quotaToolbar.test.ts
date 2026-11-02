@@ -11,7 +11,7 @@ describe('quota toolbar presentation contracts', () => {
     expect(source).toContain('{search && (');
     expect(source).toContain("aria-label={t('quota_management.search_clear')}");
     expect(source).toContain(
-      "handleSearchChange('');\n                  searchInputRef.current?.focus();"
+      "handleSearchChange('');\n                searchInputRef.current?.focus();"
     );
     expect(source).toContain('<IconX size={14} aria-hidden="true" />');
     expect(styles).toMatch(/&::-webkit-search-cancel-button,[\s\S]*?appearance: none;/);
@@ -21,7 +21,10 @@ describe('quota toolbar presentation contracts', () => {
     const toolbarStart = source.indexOf('<div className={styles.toolbar}>');
     const searchStart = source.indexOf('<div className={styles.search}>');
     const sortStart = source.indexOf('<div className={styles.sort}>');
-    expect(toolbarStart).toBeGreaterThan(source.indexOf('<ProviderTabs'));
+    // The accounts section is rendered after the provider tabs and pool cards.
+    expect(source.indexOf('{showAccounts && accountsSection}')).toBeGreaterThan(
+      source.indexOf('<ProviderTabs')
+    );
     expect(searchStart).toBeGreaterThan(toolbarStart);
     expect(sortStart).toBeGreaterThan(searchStart);
     expect(styles).toMatch(/\.toolbar\s*\{[^}]*flex-wrap: wrap;/);

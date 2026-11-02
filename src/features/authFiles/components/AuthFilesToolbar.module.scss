@@ -197,7 +197,8 @@
   border: 1px solid var(--border-color);
   background: var(--bg-secondary);
   color: var(--text-primary);
-  font-family: $font-mono;
+  font-family: $font-family;
+  font-variant-numeric: tabular-nums;
   font-size: 12.5px;
   font-variant-numeric: tabular-nums;
   text-align: right;
