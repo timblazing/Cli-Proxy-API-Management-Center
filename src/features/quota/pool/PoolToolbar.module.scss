@@ -1,5 +1,3 @@
-@use '../../../styles/mixins' as *;
-
 .toolbar {
   display: flex;
   align-items: center;
@@ -9,13 +7,18 @@
   min-width: 0;
 }
 
-.group,
-.rangeNav {
+.group {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
   gap: 8px 10px;
   min-width: 0;
+}
+
+.field {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
 }
 
 .label {
@@ -36,9 +39,7 @@
 }
 
 .segment,
-.toggle,
-.today,
-.icon {
+.toggle {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -71,8 +72,7 @@
   color: var(--text-primary);
 }
 
-.toggle,
-.today {
+.toggle {
   height: 40px;
   padding: 0 14px;
   border-radius: 10px;
@@ -83,24 +83,6 @@
 
 .toggleActive {
   background: var(--bg-tertiary);
-}
-
-.today:disabled {
-  color: var(--text-tertiary);
-  cursor: default;
-}
-
-.icon {
-  width: 32px;
-  height: 32px;
-  border-radius: 8px;
-}
-
-.rangeLabel {
-  font-size: 14px;
-  color: var(--text-tertiary);
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
 }
 
 .factor {
@@ -115,17 +97,8 @@
 
 @media (hover: hover) and (pointer: fine) {
   .segment:hover:not(.segmentActive),
-  .icon:hover,
-  .toggle:hover,
-  .today:hover:not(:disabled) {
+  .toggle:hover {
     background: var(--bg-hover);
     color: var(--text-primary);
-  }
-}
-
-@include mobile {
-  .rangeNav {
-    width: 100%;
-    justify-content: flex-end;
   }
 }

@@ -27,7 +27,7 @@ export function useQuotaHistory(hub: string) {
 }
 
 /**
- * Records one sample per credential each time its quota state is replaced by a
+ * Records one sample per credential window (weekly and 5-hour) each time its quota state is replaced by a
  * successful load. Keyed on state identity so manual card refreshes are
  * recorded too; the store dedupes loads closer than a minute.
  */
@@ -47,15 +47,17 @@ export function useQuotaHistoryRecorder(
       const quota = quotaFor(entry);
       if (!quota || quota.status !== 'success' || seen.current.has(quota)) return;
       seen.current.set(quota, true);
-      const account = buildPoolAccount(entry, quota);
-      if (!account) return;
-      fresh.push({
-        ts,
-        provider: entry.type,
-        credentialKey: account.key,
-        windowId: account.windowId,
-        remainingPct: account.remaining,
-        resetAt: account.resetAt,
+      (['weekly', 'session'] as const).forEach((kind) => {
+        const account = buildPoolAccount(entry, quota, kind);
+        if (!account) return;
+        fresh.push({
+          ts,
+          provider: entry.type,
+          credentialKey: account.key,
+          windowId: account.windowId,
+          remainingPct: account.remaining,
+          resetAt: account.resetAt,
+        });
       });
     });
     if (fresh.length === 0) return;

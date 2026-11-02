@@ -111,7 +111,12 @@
     "plugin_store": "插件商店",
     "config_management": "配置面板",
     "logs": "日志查看",
-    "system_info": "中心信息"
+    "system_info": "中心信息",
+    "overview": "Overview",
+    "accounts": "Accounts",
+    "providers": "Providers",
+    "logs_short": "Logs",
+    "settings": "Settings"
   },
   "nav_groups": {
     "operate": "运行",
@@ -132,7 +137,11 @@
     "plugin_store": "发现并安装插件",
     "logs": "请求追踪与排查",
     "config_management": "网关基础配置",
-    "system_info": "运行与诊断信息"
+    "system_info": "运行与诊断信息",
+    "overview": "Quotas, traffic and runtime",
+    "accounts": "Credentials and sign-in",
+    "providers": "Upstream providers and routing",
+    "settings": "Config, system and plugins"
   },
   "dashboard": {
     "hero_verdict_good": "运行平稳",
@@ -554,7 +563,6 @@
     "reset_confirm_button": "确认重置",
     "reset_not_confirmed": "未确认额度重置成功，请刷新额度后再决定是否重试。",
     "reset_cooldown_failed": "额度已重置，但代理冷却清除失败。请在原连接的认证文件页面使用“清除冷却”，不要再次消耗重置卡。",
-
     "reset_success": "已重置 \"{{name}}\" 的 Codex 额度",
     "reset_failed": "重置 \"{{name}}\" 的 Codex 额度失败：{{message}}",
     "plan_plus": "Plus",
@@ -1643,10 +1651,6 @@
     "pool_future_lighter": "Lighter (0.5×)",
     "pool_future_heavier": "Heavier (1.5×)",
     "pool_accounts_toggle": "Accounts",
-    "pool_range": "{{start}} to {{end}}",
-    "pool_range_today": "Today",
-    "pool_range_prev": "Previous range",
-    "pool_range_next": "Next range",
     "pool_accounts_one": "{{count}} account",
     "pool_accounts_other": "{{count}} accounts",
     "pool_collecting": "Collecting data",
@@ -1658,6 +1662,7 @@
     "pool_not_by": "Not by {{date}}",
     "pool_first_empty_in": "in {{duration}}",
     "pool_first_empty_now": "now",
+    "pool_empty_now": "Empty now",
     "pool_burn_value": "{{value}}%/h",
     "pool_step_gain": "+{{value}}%",
     "pool_now": "Now",
@@ -1668,7 +1673,9 @@
     "pool_legend_recorded": "Recorded",
     "pool_legend_projected": "Projected",
     "pool_no_data": "Quota has not loaded for this provider yet.",
-    "pool_chart_aria": "{{provider}} pooled quota chart"
+    "pool_window_session": "5-hour",
+    "pool_window_weekly": "Weekly",
+    "pool_chart_aria_window": "{{provider}} {{window}} pooled quota chart"
   },
   "routing": {
     "title": "路由编排",
@@ -2459,5 +2466,21 @@
     "error": "绑定失败，请重新开始。",
     "unsupported": "当前后端不支持 SIWC 绑定。",
     "expired": "绑定会话已过期，请重新开始。"
+  },
+  "section_tabs": {
+    "aria": "Section navigation",
+    "accounts": "Accounts",
+    "add_account": "Add account",
+    "providers": "Providers",
+    "routing": "Routing",
+    "config": "Config",
+    "system": "System",
+    "plugins": "Plugins",
+    "plugin_store": "Plugin store"
+  },
+  "overview": {
+    "title": "Overview",
+    "traffic": "Traffic",
+    "runtime": "Runtime"
   }
 }

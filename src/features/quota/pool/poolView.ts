@@ -5,6 +5,7 @@
 
 import { HOUR_MS } from '@/utils/time/durations';
 import type { HistorySample } from './historyStore';
+import { formatDayTick, formatHourTick, formatWeekday } from './poolFormat';
 import {
   aggregate,
   poolBurnRate,
@@ -21,6 +22,14 @@ import {
 export const RANGE_DAYS = 14;
 export const RANGE_DAYS_BACK = 3;
 export const RANGE_SHIFT_DAYS = 7;
+
+/** Session (5-hour) view: twelve hours back, twenty-four ahead. */
+export const SESSION_BACK_HOURS = 12;
+export const SESSION_AHEAD_HOURS = 24;
+export const SESSION_TICK_HOURS = 6;
+
+/** Which rolling window a pool panel tracks. */
+export type PoolWindowKind = 'session' | 'weekly';
 
 export type BurnHours = 1 | 3 | 6;
 export type FutureFactor = 0.5 | 1 | 1.5;
@@ -51,6 +60,42 @@ export function poolRange(now: number, offsetWeeks: number): PoolRange {
   return { from, to: addDays(from, RANGE_DAYS) };
 }
 
+/** Session range around `now`: 12 hours back, 24 hours ahead. */
+export function sessionRange(now: number): PoolRange {
+  return { from: now - SESSION_BACK_HOURS * HOUR_MS, to: now + SESSION_AHEAD_HOURS * HOUR_MS };
+}
+
+export interface PoolTick {
+  t: number;
+  label: string;
+}
+
+/**
+ * Local clock hours 0/6/12/18 inside the range, so ticks stay aligned to the
+ * wall clock (and DST) rather than to `now`. Midnight reads as a weekday.
+ */
+export function sessionTicks(range: PoolRange, locale: string): PoolTick[] {
+  const ticks: PoolTick[] = [];
+  const day = new Date(range.from);
+  day.setHours(0, 0, 0, 0);
+  for (let guard = 0; guard < 8 && day.getTime() < range.to; guard += 1) {
+    for (let hour = 0; hour < 24; hour += SESSION_TICK_HOURS) {
+      const at = new Date(day);
+      at.setHours(hour, 0, 0, 0);
+      const t = at.getTime();
+      if (t < range.from || t > range.to) continue;
+      ticks.push({ t, label: hour === 0 ? formatWeekday(t, locale) : formatHourTick(t, locale) });
+    }
+    day.setDate(day.getDate() + 1);
+  }
+  return ticks;
+}
+
+/** Day ticks with "Fri 23" labels for the weekly view. */
+export function weeklyTicks(range: PoolRange, locale: string): PoolTick[] {
+  return dayTicks(range).map((t) => ({ t, label: formatDayTick(t, locale) }));
+}
+
 /** Local midnights inside the range, for day ticks. */
 export function dayTicks(range: PoolRange): number[] {
   const ticks: number[] = [];
@@ -69,7 +114,10 @@ export interface PoolViewInput {
   samples: readonly HistorySample[];
   burnHours: BurnHours;
   factor: FutureFactor;
+  /** Visible range; also bounds the burn-rate series. */
   range: PoolRange;
+  /** Where the projection ends. Chosen by the caller. */
+  projectUntil: number;
 }
 
 export interface PoolView {
@@ -84,12 +132,12 @@ export interface PoolView {
   poolEmpty: number | null;
   firstEmpty: { at: number; label: string } | null;
   nextReset: PoolStep | null;
-  /** Where the projection ends; the default range end or the shifted one. */
+  /** Where the projection ends. */
   projectedUntil: number;
 }
 
 export function buildPoolView(input: PoolViewInput): PoolView {
-  const { now, accounts, samples, burnHours, factor, range } = input;
+  const { now, accounts, samples, burnHours, factor, range, projectUntil } = input;
   const capacity = accounts.length * 100;
   const current = accounts.reduce((sum, account) => sum + account.remaining, 0);
 
@@ -118,9 +166,7 @@ export function buildPoolView(input: PoolViewInput): PoolView {
   ];
   const burn = poolBurnRate(burnSamples, burnHours, now);
 
-  // Stats read the same projection regardless of which window the user pages to.
-  const defaultEnd = poolRange(now, 0).to;
-  const projectedUntil = Math.max(range.to, defaultEnd);
+  const projectedUntil = projectUntil;
   const { points: projectedFull, firstEmpty } = simulate(
     now,
     accounts,

@@ -25,8 +25,6 @@ import {
   IconSidebarOauth,
   IconSidebarPlugins,
   IconSidebarProviders,
-  IconSidebarQuickStart,
-  IconSidebarQuota,
   IconSidebarRouting,
   IconSidebarStore,
   IconSidebarSystem,
@@ -48,20 +46,24 @@ import {
   resolvePluginAssetURL,
   type PluginResourceEntry,
 } from '@/features/plugins/pluginResources';
-import { APIKEY_FUN_DISPLAY_NAME, hasApiKeyFunConfig } from '@/features/providers/sponsor';
 import { triggerHeaderRefresh } from '@/hooks/useHeaderRefresh';
 import { LANGUAGE_LABEL_KEYS, LANGUAGE_ORDER } from '@/utils/constants';
 import { isSupportedLanguage } from '@/utils/language';
 import { getSidebarShortcutLabel, isSidebarToggleShortcut } from '@/utils/sidebarShortcut';
 import type { Theme } from '@/types';
+import {
+  SECTIONS,
+  findSection,
+  isSameSectionTabSwitch,
+  sectionTabIndex,
+  sectionTabs,
+} from './sections';
 
 const sidebarIcons: Record<string, ReactNode> = {
   dashboard: <IconSidebarDashboard size={18} />,
-  quickStart: <IconSidebarQuickStart size={18} />,
   aiProviders: <IconSidebarProviders size={18} />,
   authFiles: <IconSidebarAuthFiles size={18} />,
   oauth: <IconSidebarOauth size={18} />,
-  quota: <IconSidebarQuota size={18} />,
   routing: <IconSidebarRouting size={18} />,
   plugins: <IconSidebarPlugins size={18} />,
   pluginStore: <IconSidebarStore size={18} />,
@@ -79,6 +81,8 @@ interface SidebarNavLinkItem {
   meta?: string;
   badge?: number;
   badgeLabel?: string;
+  /** Extra route prefixes that keep this item active (a section's other tabs). */
+  matchPaths?: readonly string[];
   icon: ReactNode;
 }
 
@@ -98,7 +102,8 @@ const NAV_TOOLTIP_VIEWPORT_MARGIN = 8;
 
 interface SidebarNavGroup {
   id: string;
-  labelKey: string;
+  /** Omitted for the unlabelled primary group. */
+  labelKey?: string;
   items: SidebarNavItem[];
 }
 
@@ -321,7 +326,6 @@ export function MainLayout() {
 
   const fetchConfig = useConfigStore((state) => state.fetchConfig);
   const clearCache = useConfigStore((state) => state.clearCache);
-  const config = useConfigStore((state) => state.config);
 
   const theme = useThemeStore((state) => state.theme);
   const setTheme = useThemeStore((state) => state.setTheme);
@@ -587,114 +591,53 @@ export function MainLayout() {
       })
     : [];
 
-  const isApiKeyFunConfigured = hasApiKeyFunConfig(config);
-  const quickStartNavItem: SidebarNavLinkItem = {
-    path: '/quick-start',
-    label: isApiKeyFunConfigured ? APIKEY_FUN_DISPLAY_NAME : undefined,
-    labelKey: isApiKeyFunConfigured ? undefined : 'nav.quick_start',
-    metaKey: 'nav_meta.quick_start',
-    icon: sidebarIcons.quickStart,
-  };
+  const sectionMatchPaths = (sectionId: string) =>
+    sectionTabs(
+      SECTIONS.find((section) => section.id === sectionId)!,
+      supportsPlugin
+    ).map((tab) => tab.path);
 
   const navGroups: SidebarNavGroup[] = [
     {
-      id: 'operate',
-      labelKey: 'nav_groups.operate',
+      id: 'main',
       items: [
         {
           path: '/',
-          labelKey: 'nav.dashboard',
-          metaKey: 'nav_meta.dashboard',
+          labelKey: 'nav.overview',
+          metaKey: 'nav_meta.overview',
           icon: sidebarIcons.dashboard,
-        },
-        ...(!isApiKeyFunConfigured ? [quickStartNavItem] : []),
-      ],
-    },
-    {
-      id: 'gateway',
-      labelKey: 'nav_groups.gateway',
-      items: [
-        {
-          path: '/ai-providers',
-          labelKey: 'nav.ai_providers',
-          metaKey: 'nav_meta.ai_providers',
-          icon: sidebarIcons.aiProviders,
         },
         {
           path: '/auth-files',
-          labelKey: 'nav.auth_files',
-          metaKey: 'nav_meta.auth_files',
+          labelKey: 'nav.accounts',
+          metaKey: 'nav_meta.accounts',
           badge: authFilesCount ?? undefined,
           badgeLabel:
             typeof authFilesCount === 'number'
               ? t('sidebar.auth_files_count', { count: authFilesCount })
               : undefined,
+          matchPaths: sectionMatchPaths('accounts'),
           icon: sidebarIcons.authFiles,
         },
         {
-          path: '/oauth',
-          labelKey: 'nav.oauth',
-          metaKey: 'nav_meta.oauth',
-          icon: sidebarIcons.oauth,
-        },
-        {
-          path: '/routing',
-          labelKey: 'nav.routing',
-          metaKey: 'nav_meta.routing',
-          icon: sidebarIcons.routing,
-        },
-        ...(isApiKeyFunConfigured ? [quickStartNavItem] : []),
-      ],
-    },
-    {
-      id: 'observe',
-      labelKey: 'nav_groups.observe',
-      items: [
-        {
-          path: '/quota',
-          labelKey: 'nav.quota_management',
-          metaKey: 'nav_meta.quota_management',
-          icon: sidebarIcons.quota,
+          path: '/ai-providers',
+          labelKey: 'nav.providers',
+          metaKey: 'nav_meta.providers',
+          matchPaths: sectionMatchPaths('providers'),
+          icon: sidebarIcons.aiProviders,
         },
         {
           path: '/logs',
-          labelKey: 'nav.logs',
+          labelKey: 'nav.logs_short',
           metaKey: 'nav_meta.logs',
           icon: sidebarIcons.logs,
         },
-      ],
-    },
-    {
-      id: 'control',
-      labelKey: 'nav_groups.control',
-      items: [
         {
           path: '/config',
-          labelKey: 'nav.config_management',
-          metaKey: 'nav_meta.config_management',
+          labelKey: 'nav.settings',
+          metaKey: 'nav_meta.settings',
+          matchPaths: sectionMatchPaths('settings'),
           icon: sidebarIcons.config,
-        },
-        ...(supportsPlugin
-          ? [
-              {
-                path: '/plugins',
-                labelKey: 'nav.plugins',
-                metaKey: 'nav_meta.plugins',
-                icon: sidebarIcons.plugins,
-              },
-              {
-                path: '/plugin-store',
-                labelKey: 'nav.plugin_store',
-                metaKey: 'nav_meta.plugin_store',
-                icon: sidebarIcons.pluginStore,
-              },
-            ]
-          : []),
-        {
-          path: '/system',
-          labelKey: 'nav.system_info',
-          metaKey: 'nav_meta.system_info',
-          icon: sidebarIcons.system,
         },
       ],
     },
@@ -725,6 +668,14 @@ export function MainLayout() {
       }
     }
 
+    // Sub-tabs of a section sort right after the section's own nav item.
+    const section = findSection(normalizedPath);
+    if (section) {
+      const sectionIndex = navOrder.indexOf(section.navPath);
+      const tabIndex = sectionTabIndex(section, normalizedPath);
+      if (sectionIndex !== -1 && tabIndex !== -1) return sectionIndex + tabIndex * 0.01;
+    }
+
     const exactIndex = navOrder.indexOf(normalizedPath);
     if (exactIndex !== -1) return exactIndex;
     const nestedIndex = navOrder.findIndex(
@@ -745,6 +696,7 @@ export function MainLayout() {
     const isAuthFiles = (pathname: string) =>
       pathname === '/auth-files' || pathname.startsWith('/auth-files/');
     if (isAuthFiles(from) && isAuthFiles(to)) return 'ios';
+    if (isSameSectionTabSwitch(from, to)) return 'none';
     return 'vertical';
   }, []);
 
@@ -864,12 +816,18 @@ export function MainLayout() {
     const itemLabel = item.label ?? (item.labelKey ? t(item.labelKey) : '');
     const itemMeta = item.meta ?? (item.metaKey ? t(item.metaKey) : '');
     const accessibleLabel = item.badgeLabel ? `${itemLabel}, ${item.badgeLabel}` : itemLabel;
+    const sectionActive = Boolean(
+      item.matchPaths?.some(
+        (path) => location.pathname === path || location.pathname.startsWith(`${path}/`)
+      )
+    );
 
     return (
       <NavLink
         key={item.path}
         to={item.path}
-        className={({ isActive }) => `${className} ${isActive ? 'active' : ''}`}
+        className={({ isActive }) => `${className} ${isActive || sectionActive ? 'active' : ''}`}
+        aria-current={sectionActive ? 'page' : undefined}
         onClick={() => {
           focusedRailItemRef.current = null;
           setSidebarOpen(false);
@@ -1175,11 +1133,9 @@ export function MainLayout() {
           <div className="nav-section">
             {navGroups.map((group, idx) => (
               <div className="nav-group" key={group.id}>
-                {showSidebarLabels ? (
-                  <div className="nav-group-label">{t(group.labelKey)}</div>
-                ) : (
-                  idx > 0 && <div className="nav-group-divider" aria-hidden="true" />
-                )}
+                {showSidebarLabels
+                  ? group.labelKey && <div className="nav-group-label">{t(group.labelKey)}</div>
+                  : idx > 0 && <div className="nav-group-divider" aria-hidden="true" />}
                 {group.items.map((item) => renderNavItem(item))}
               </div>
             ))}

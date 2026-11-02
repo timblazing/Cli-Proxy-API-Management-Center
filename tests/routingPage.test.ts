@@ -166,11 +166,12 @@ describe('routing board rendering', () => {
     expect(page).toContain('@media (prefers-reduced-motion: reduce)');
     expect(card).toContain('@media (prefers-reduced-motion: reduce)');
     expect(bar).toContain('@media (prefers-reduced-motion: reduce)');
-    expect(readFileSync('src/router/MainRoutes.tsx', 'utf8')).toContain(
-      "{ path: '/routing', element: <RoutingPage /> }"
+    expect(readFileSync('src/router/MainRoutes.tsx', 'utf8')).toMatch(
+      /path: '\/routing',\s*element: \(\s*<SectionPage section="providers">\s*<RoutingPage \/>/
     );
-    expect(readFileSync('src/components/layout/MainLayout.tsx', 'utf8')).toContain(
-      "labelKey: 'nav.routing'"
+    // Routing is a tab of the Providers section rather than its own sidebar item.
+    expect(readFileSync('src/components/layout/sections.ts', 'utf8')).toContain(
+      "{ path: '/routing', labelKey: 'section_tabs.routing' }"
     );
   });
 });

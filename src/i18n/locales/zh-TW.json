@@ -111,7 +111,12 @@
     "plugin_store": "插件商店",
     "config_management": "設定面板",
     "logs": "記錄檢視",
-    "system_info": "中心資訊"
+    "system_info": "中心資訊",
+    "overview": "Overview",
+    "accounts": "Accounts",
+    "providers": "Providers",
+    "logs_short": "Logs",
+    "settings": "Settings"
   },
   "nav_groups": {
     "operate": "運行",
@@ -132,7 +137,11 @@
     "plugin_store": "探索並安裝插件",
     "logs": "請求追蹤與排查",
     "config_management": "閘道基礎設定",
-    "system_info": "運行與診斷資訊"
+    "system_info": "運行與診斷資訊",
+    "overview": "Quotas, traffic and runtime",
+    "accounts": "Credentials and sign-in",
+    "providers": "Upstream providers and routing",
+    "settings": "Config, system and plugins"
   },
   "dashboard": {
     "hero_verdict_good": "運行平穩",
@@ -554,7 +563,6 @@
     "reset_confirm_button": "確認重置",
     "reset_not_confirmed": "尚未確認額度重置成功，請重新整理額度後再決定是否重試。",
     "reset_cooldown_failed": "額度已重置，但代理冷卻清除失敗。請在原連線的認證檔案頁面使用「清除冷卻」，不要再次消耗重置卡。",
-
     "reset_success": "已重置「{{name}}」的 Codex 配額",
     "reset_failed": "重置「{{name}}」的 Codex 配額失敗：{{message}}",
     "plan_plus": "Plus",
@@ -1671,10 +1679,6 @@
     "pool_future_lighter": "Lighter (0.5×)",
     "pool_future_heavier": "Heavier (1.5×)",
     "pool_accounts_toggle": "Accounts",
-    "pool_range": "{{start}} to {{end}}",
-    "pool_range_today": "Today",
-    "pool_range_prev": "Previous range",
-    "pool_range_next": "Next range",
     "pool_accounts_one": "{{count}} account",
     "pool_accounts_other": "{{count}} accounts",
     "pool_collecting": "Collecting data",
@@ -1686,6 +1690,7 @@
     "pool_not_by": "Not by {{date}}",
     "pool_first_empty_in": "in {{duration}}",
     "pool_first_empty_now": "now",
+    "pool_empty_now": "Empty now",
     "pool_burn_value": "{{value}}%/h",
     "pool_step_gain": "+{{value}}%",
     "pool_now": "Now",
@@ -1696,7 +1701,9 @@
     "pool_legend_recorded": "Recorded",
     "pool_legend_projected": "Projected",
     "pool_no_data": "Quota has not loaded for this provider yet.",
-    "pool_chart_aria": "{{provider}} pooled quota chart"
+    "pool_window_session": "5-hour",
+    "pool_window_weekly": "Weekly",
+    "pool_chart_aria_window": "{{provider}} {{window}} pooled quota chart"
   },
   "routing": {
     "title": "路由編排",
@@ -2487,5 +2494,21 @@
     "error": "綁定失敗，請重新開始。",
     "unsupported": "目前後端不支援 SIWC 綁定。",
     "expired": "綁定工作階段已過期，請重新開始。"
+  },
+  "section_tabs": {
+    "aria": "Section navigation",
+    "accounts": "Accounts",
+    "add_account": "Add account",
+    "providers": "Providers",
+    "routing": "Routing",
+    "config": "Config",
+    "system": "System",
+    "plugins": "Plugins",
+    "plugin_store": "Plugin store"
+  },
+  "overview": {
+    "title": "Overview",
+    "traffic": "Traffic",
+    "runtime": "Runtime"
   }
 }
