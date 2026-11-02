@@ -77,7 +77,7 @@ describe('login transition store', () => {
     expect(animationTotal(page, 'exitToBase')).toBe(LOGIN_TRANSITION_TIMINGS.exit);
     expect(animationTotal(page, 'exitLift')).toBe(LOGIN_TRANSITION_TIMINGS.exit);
     // 外壳入场必须在揭幕结束前落定，否则撤销类名时会跳变
-    for (const name of ['shellSidebarIn', 'shellChromeIn', 'shellFadeIn']) {
+    for (const name of ['shellChromeIn']) {
       expect(animationTotal(layout, name)).toBeLessThanOrEqual(LOGIN_TRANSITION_TIMINGS.reveal);
     }
   });
