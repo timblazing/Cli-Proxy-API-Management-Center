@@ -3,6 +3,7 @@ import {
   aggregate,
   burnRate,
   burnSeries,
+  poolBurnRate,
   findSteps,
   firstEmpty,
   nextReset,
@@ -194,5 +195,34 @@ describe('helpers', () => {
     const step = nextReset(points, NOW);
     expect(step?.t).toBe(NOW + 20 * H);
     expect(step?.gain).toBeCloseTo(90, 4);
+  });
+});
+
+describe('poolBurnRate', () => {
+  test('a reset on one account does not cancel drain on another', () => {
+    const samples = [
+      { ts: NOW - 1 * H, credentialKey: 'a', remainingPct: 100 },
+      { ts: NOW - 1 * H, credentialKey: 'b', remainingPct: 0 },
+      { ts: NOW, credentialKey: 'a', remainingPct: 80 },
+      { ts: NOW, credentialKey: 'b', remainingPct: 100 },
+    ];
+    expect(poolBurnRate(samples, 1, NOW)).toBeCloseTo(20, 5);
+  });
+
+  test('unchanged observations keep their timing for the trailing window', () => {
+    const samples = [
+      { ts: NOW - 4 * H, credentialKey: 'a', remainingPct: 100 },
+      { ts: NOW - 1 * H, credentialKey: 'a', remainingPct: 100 },
+      { ts: NOW, credentialKey: 'a', remainingPct: 90 },
+    ];
+    expect(poolBurnRate(samples, 1, NOW)).toBeCloseTo(10, 5);
+  });
+
+  test('sparse history yields null', () => {
+    const samples = [
+      { ts: NOW - 5 * 60_000, credentialKey: 'a', remainingPct: 66 },
+      { ts: NOW, credentialKey: 'a', remainingPct: 65 },
+    ];
+    expect(poolBurnRate(samples, 3, NOW)).toBeNull();
   });
 });

@@ -7,8 +7,8 @@ import { HOUR_MS } from '@/utils/time/durations';
 import type { HistorySample } from './historyStore';
 import {
   aggregate,
-  burnRate,
-  burnSeries,
+  poolBurnRate,
+  poolBurnSeries,
   nextReset,
   poolEmptyAt,
   simulate,
@@ -107,7 +107,16 @@ export function buildPoolView(input: PoolViewInput): PoolView {
   const history = aggregate(poolSamples).filter((point) => point.t < now);
   const recorded: PoolPoint[] = [...history, { t: now, v: current }];
 
-  const burn = burnRate(recorded, burnHours, now);
+  // Burn is measured per credential so one account's reset cannot cancel another's drain.
+  const burnSamples: PoolSample[] = [
+    ...poolSamples.filter((sample) => sample.ts < now),
+    ...accounts.map((account) => ({
+      ts: now,
+      credentialKey: account.key,
+      remainingPct: account.remaining,
+    })),
+  ];
+  const burn = poolBurnRate(burnSamples, burnHours, now);
 
   // Stats read the same projection regardless of which window the user pages to.
   const defaultEnd = poolRange(now, 0).to;
@@ -125,7 +134,7 @@ export function buildPoolView(input: PoolViewInput): PoolView {
 
   const step = Math.max(HOUR_MS, Math.round((range.to - range.from) / 240));
   const burnStart = Math.max(range.from, recorded[0].t);
-  const burnRecorded = burnSeries(recorded, burnHours, burnStart, now, step);
+  const burnRecorded = poolBurnSeries(burnSamples, burnHours, burnStart, now, step);
   // The recorded line must end exactly at "now" so the projection joins it with no gap.
   if (burn !== null && burnRecorded[burnRecorded.length - 1]?.t !== now) {
     burnRecorded.push({ t: now, v: burn });

@@ -62,3 +62,13 @@ describe('maskEmailsInText', () => {
     expect(maskEmailsInText('claude-blasingame@gmail.com (pro)', false)).toBe('claude-bla… (pro)');
   });
 });
+
+describe('masking repeated emails', () => {
+  test('masks every occurrence of the known email and other addresses', () => {
+    const text = 'devin-user@example.com.json · user@example.com · other@test.io';
+    const masked = maskEmailsInText(text, false, 'user@example.com');
+    expect(masked).not.toContain('user@example.com');
+    expect(masked).not.toContain('other@test.io');
+    expect(masked).toBe('devin-use….json · use… · oth…');
+  });
+});

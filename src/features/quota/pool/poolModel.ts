@@ -110,12 +110,18 @@ const MIN_BURN_SPAN_MS = 30 * 60_000;
  * recorded. Returns null unless the samples span at least
  * max(30 min, window / 3), so sparse history never yields a rate.
  */
-export function burnRate(
+interface WindowDrain {
+  drained: number;
+  start: number;
+  end: number;
+}
+
+/** Downward movement of one series inside the trailing window, clipped at the window start. */
+function windowDrain(
   series: readonly PoolPoint[],
   windowHours: number,
-  now: number = series.length > 0 ? series[series.length - 1].t : 0
-): number | null {
-  if (!(windowHours > 0) || series.length < 2) return null;
+  now: number
+): WindowDrain | null {
   const from = now - windowHours * HOUR_MS;
   const inWindow = series.filter((point) => point.t >= from && point.t <= now);
   // A drop straddling the window start is clipped to the window by
@@ -134,19 +140,103 @@ export function burnRate(
       : inWindow;
   if (scoped.length < 2) return null;
 
-  // Too little history makes a one-point tick look like a steep burn.
-  const minSpanMs = Math.max(MIN_BURN_SPAN_MS, (windowHours * HOUR_MS) / 3);
-  if (scoped[scoped.length - 1].t - scoped[0].t < minSpanMs) return null;
-
   let drained = 0;
   for (let index = 1; index < scoped.length; index += 1) {
     const delta = scoped[index].v - scoped[index - 1].v;
     if (delta < 0) drained += -delta;
   }
-  const start = Math.max(from, scoped[0].t);
-  const covered = Math.min(windowHours * HOUR_MS, Math.max(now - start, 0));
+  return { drained, start: scoped[0].t, end: scoped[scoped.length - 1].t };
+}
+
+/** Combine per-series drains into one rate, or null when history is too short. */
+function rateFromDrains(
+  drains: readonly WindowDrain[],
+  windowHours: number,
+  now: number
+): number | null {
+  if (!(windowHours > 0) || drains.length === 0) return null;
+  const start = Math.min(...drains.map((drain) => drain.start));
+  const end = Math.max(...drains.map((drain) => drain.end));
+  // Too little history makes a one-point tick look like a steep burn.
+  const minSpanMs = Math.max(MIN_BURN_SPAN_MS, (windowHours * HOUR_MS) / 3);
+  if (end - start < minSpanMs) return null;
+  const from = now - windowHours * HOUR_MS;
+  const covered = Math.min(windowHours * HOUR_MS, Math.max(now - Math.max(from, start), 0));
   if (covered < 60_000) return null;
+  const drained = drains.reduce((sum, drain) => sum + drain.drained, 0);
   return drained / (covered / HOUR_MS);
+}
+
+/**
+ * Burn of a single series in percentage points per hour over the trailing
+ * `windowHours`.
+ *
+ * Only downward movement counts: an upward jump is a reset, not negative
+ * burn. The divisor is the span the history actually covers inside the window
+ * (capped at the window), so a short history is not diluted by time nobody
+ * recorded. Returns null unless the samples span at least
+ * max(30 min, window / 3), so sparse history never yields a rate.
+ */
+export function burnRate(
+  series: readonly PoolPoint[],
+  windowHours: number,
+  now: number = series.length > 0 ? series[series.length - 1].t : 0
+): number | null {
+  if (!(windowHours > 0) || series.length < 2) return null;
+  const drain = windowDrain(series, windowHours, now);
+  return drain ? rateFromDrains([drain], windowHours, now) : null;
+}
+
+/** Raw per-credential series (sorted, clamped, equal values kept for timing). */
+function seriesByCredential(samples: readonly PoolSample[]): PoolPoint[][] {
+  const byKey = new Map<string, PoolPoint[]>();
+  samples.forEach((sample) => {
+    if (!Number.isFinite(sample.ts) || !Number.isFinite(sample.remainingPct)) return;
+    const list = byKey.get(sample.credentialKey) ?? [];
+    list.push({ t: sample.ts, v: clampPct(sample.remainingPct) });
+    byKey.set(sample.credentialKey, list);
+  });
+  return [...byKey.values()].map((list) => list.sort((a, b) => a.t - b.t));
+}
+
+/**
+ * Pool burn from raw samples: each credential's drain is measured on its own
+ * series and then summed, so one account's reset never cancels another
+ * account's consumption.
+ */
+export function poolBurnRate(
+  samples: readonly PoolSample[],
+  windowHours: number,
+  now: number
+): number | null {
+  if (!(windowHours > 0)) return null;
+  const drains = seriesByCredential(samples)
+    .map((series) => windowDrain(series, windowHours, now))
+    .filter((drain): drain is WindowDrain => drain !== null);
+  return rateFromDrains(drains, windowHours, now);
+}
+
+/** Rolling pool burn (per-credential) sampled on a grid, for the drain-rate chart. */
+export function poolBurnSeries(
+  samples: readonly PoolSample[],
+  windowHours: number,
+  from: number,
+  to: number,
+  stepMs: number
+): PoolPoint[] {
+  if (!(stepMs > 0) || !(to > from) || samples.length < 2) return [];
+  const series = seriesByCredential(samples);
+  const first = Math.min(...series.map((list) => list[0]?.t ?? Infinity));
+  const out: PoolPoint[] = [];
+  for (let t = from; t <= to; t += stepMs) {
+    if (t < first) continue;
+    const drains = series
+      .map((list) => windowDrain(list, windowHours, t))
+      .filter((drain): drain is WindowDrain => drain !== null);
+    const v = rateFromDrains(drains, windowHours, t);
+    if (v !== null) out.push({ t, v });
+  }
+  return out;
 }
 
 /** Rolling burn rate sampled on a grid, for the drain-rate chart. */

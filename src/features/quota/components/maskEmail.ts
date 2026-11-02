@@ -5,23 +5,10 @@ export const EMAIL_CLASS = 'cpamc-email';
 // blur only the address, not the provider/hash prefix.
 const EMAIL_PATTERN = /[A-Za-z0-9._%+]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,}/g;
 
-/** Split text into plain and email segments. `knownEmail` wins over the pattern. */
-export function splitEmailSegments(
-  text: string,
-  knownEmail?: string
-): { text: string; email: boolean }[] {
-  const known = knownEmail?.trim();
-  if (known) {
-    const at = text.indexOf(known);
-    if (at !== -1) {
-      return [
-        { text: text.slice(0, at), email: false },
-        { text: known, email: true },
-        { text: text.slice(at + known.length), email: false },
-      ].filter((segment) => segment.text !== '');
-    }
-  }
-  const segments: { text: string; email: boolean }[] = [];
+type EmailSegment = { text: string; email: boolean };
+
+function splitByPattern(text: string): EmailSegment[] {
+  const segments: EmailSegment[] = [];
   let last = 0;
   for (const match of text.matchAll(EMAIL_PATTERN)) {
     const start = match.index ?? 0;
@@ -31,6 +18,20 @@ export function splitEmailSegments(
   }
   if (last < text.length) segments.push({ text: text.slice(last), email: false });
   return segments;
+}
+
+/**
+ * Split text into plain and email segments. Every occurrence of `knownEmail`
+ * is an email segment; the text between them is still scanned for addresses.
+ */
+export function splitEmailSegments(text: string, knownEmail?: string): EmailSegment[] {
+  const known = knownEmail?.trim();
+  if (!known) return splitByPattern(text);
+  const parts = text.split(known);
+  return parts.flatMap((part, index) => [
+    ...splitByPattern(part),
+    ...(index < parts.length - 1 ? [{ text: known, email: true }] : []),
+  ]);
 }
 
 /**
