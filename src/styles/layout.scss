@@ -48,7 +48,7 @@
   right: 0;
   left: var(--sidebar-active-width);
   z-index: $z-dropdown - 2;
-  height: 141px;
+  height: 72px;
   pointer-events: none;
   /* Fade scrolled content under the floating toolbar using the page colour only
      (no darkening, no blur), so no tinted band shows in light themes. */
@@ -814,7 +814,7 @@
   }
 
   .top-gradient-blur {
-    height: 114px;
+    height: 64px;
   }
 
   .nav-tooltip {

@@ -79,7 +79,9 @@ export function PoolCard(props: PoolCardProps) {
 
   const firstEmptyNode = (() => {
     if (!view) return '—';
-    if (!view.firstEmpty) return notBy;
+    if (!view.firstEmpty) {
+      return view.burn === null ? t('quota_management.pool_collecting') : notBy;
+    }
     const wait = view.firstEmpty.at - now;
     return (
       <>
